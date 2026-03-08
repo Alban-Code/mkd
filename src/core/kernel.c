@@ -2,7 +2,9 @@
 #include "internal/kernel_internal.h"
 #include "kernel/log.h"
 
-static kernel_t g_kernel;
+#include <stdlib.h>
+
+kernel_t g_kernel;
 
 k_status_t k_init()
 {
@@ -23,6 +25,10 @@ k_status_t k_shutdown()
     else
     {
         g_kernel.initialized = false;
+        g_kernel.head = NULL;
+        g_kernel.tail = NULL;
+        g_kernel.current_task = NULL;
+        g_kernel.to_free = NULL;
         LOG(LOG_INFO, "kernel shutdown");
         return K_OK;
     }

@@ -3,6 +3,23 @@
 
 #include "kernel/kernel.h"
 #include "kernel/log.h"
+#include "kernel/task.h"
+
+void fonction1(void *args)
+{
+    (void)args;
+    LOG(LOG_INFO, "Je suis dans la fonction 1 avant le premier yield");
+    k_yield();
+    LOG(LOG_INFO, "Je suis dans la fonction 1 après le premier yield");
+}
+
+void fonction2(void *args)
+{
+    (void)args;
+    LOG(LOG_INFO, "Je suis dans la fonction 2 avant le premier yield");
+    k_yield();
+    LOG(LOG_INFO, "Je suis dans la fonction 2 après le premier yield");
+}
 
 int main(int argc, char **argv)
 {
@@ -20,6 +37,9 @@ int main(int argc, char **argv)
     if (argc == 1)
     {
         k_init();
+        k_task_create(fonction1, NULL);
+        k_task_create(fonction2, NULL);
+        k_run();
         k_shutdown();
         return 0;
     }
