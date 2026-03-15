@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <ucontext.h>
+#include <assert.h>
 
 #include "kernel/task.h"
 #include "internal/task_internal.h"
@@ -7,13 +8,11 @@
 
 #define TASK_STACK_SIZE (64 * 1024)
 
-static int next_id = 0;
-
 static void task_trampoline(void)
 {
     k_task_t *task = g_kernel.current_task;
     task->fn(task->args);
-    task->state = TERMINATED;
+    task_set_state(task, TERMINATED);
     k_yield();
 }
 
@@ -35,10 +34,10 @@ int k_task_create(task_fn_t fn, void *args)
 
     task->stack_size = TASK_STACK_SIZE;
 
-    task->state = NEW;
+    task_set_state(task, NEW);
     task->fn = fn;
     task->args = args;
-    task->id = next_id++;
+    task->id = g_kernel.next_id++;
     task->next = NULL;
 
     getcontext(&task->ctx);
@@ -52,7 +51,7 @@ int k_task_create(task_fn_t fn, void *args)
 
     makecontext(&task->ctx, task_trampoline, 0);
 
-    task->state = READY;
+    task_set_state(task, READY);
 
     if (g_kernel.head == NULL)
     {
@@ -66,4 +65,78 @@ int k_task_create(task_fn_t fn, void *args)
     }
 
     return task->id;
+}
+
+void task_set_state(k_task_t *task, task_state_t new_state)
+{
+    switch (new_state)
+    {
+    case NEW:
+        task->state = NEW;
+        break;
+    case READY:
+        if (task->state != NEW && task->state != BLOCKED && task->state != RUNNING)
+        {
+            assert(false && "Cannot change state to READY if not in NEW, BLOCKED or RUNNING state");
+        }
+        task->state = READY;
+        break;
+    case RUNNING:
+        if (task->state != READY)
+        {
+            assert(false && "Cannot change state to RUNNING if not in READY state");
+        }
+        task->state = RUNNING;
+        break;
+    case TERMINATED:
+        if (task->state != RUNNING)
+        {
+            assert(false && "Cannot change state to TERMINATED if not in RUNNING state");
+        }
+        task->state = TERMINATED;
+        break;
+    case BLOCKED:
+        if (task->state != RUNNING)
+        {
+            assert(false && "Cannot change state to BLOCKED if not in RUNNING state");
+        }
+        task->state = BLOCKED;
+        break;
+    default:
+        break;
+    }
+}
+
+int k_task_count_in_state(task_state_t state)
+{
+    if (state == RUNNING)
+    {
+        if (g_kernel.current_task != NULL)
+        {
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        k_task_t *task_it = g_kernel.head;
+        int counter = 0;
+        while (task_it != NULL)
+        {
+            if (task_it->state == state)
+            {
+                counter++;
+            }
+            task_it = task_it->next;
+        }
+        return counter;
+    }
+}
+
+task_state_t k_current_task_state(void)
+{
+    return g_kernel.current_task->state;
 }

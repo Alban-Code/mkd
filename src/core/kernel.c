@@ -11,6 +11,7 @@ k_status_t k_init()
     if (!g_kernel.initialized)
     {
         g_kernel.initialized = true;
+        g_kernel.next_id = 0;
         LOG(LOG_INFO, "kernel initialized");
         return K_OK;
     }
@@ -25,6 +26,19 @@ k_status_t k_shutdown()
     else
     {
         g_kernel.initialized = false;
+        k_task_t *it = g_kernel.head;
+        if (g_kernel.to_free != NULL)
+        {
+            free(g_kernel.to_free->stack);
+            free(g_kernel.to_free);
+        }
+        while (it != NULL)
+        {
+            k_task_t *cur = it;
+            it = it->next;
+            free(cur->stack);
+            free(cur);
+        }
         g_kernel.head = NULL;
         g_kernel.tail = NULL;
         g_kernel.current_task = NULL;

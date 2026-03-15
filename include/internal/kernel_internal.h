@@ -8,6 +8,7 @@
 typedef struct
 {
     bool initialized;
+    int next_id;
     // Pointeur vers le début de la liste de tâches à run
     k_task_t *head;
     // Pointeur vers la fin de la liste de tâches à run

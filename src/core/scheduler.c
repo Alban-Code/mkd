@@ -38,7 +38,11 @@ void k_yield()
 
     if (cur->state != TERMINATED)
     {
-        cur->state = READY;
+        if (next == NULL)
+        {
+            return;
+        }
+        task_set_state(cur, READY);
 
         if (g_kernel.head == NULL)
         {
@@ -51,16 +55,9 @@ void k_yield()
             g_kernel.tail = cur;
         }
 
-        if (next == NULL)
-        {
-            swapcontext(&cur->ctx, &g_kernel.main_ctx);
-        }
-        else
-        {
-            g_kernel.current_task = next;
-            next->state = RUNNING;
-            swapcontext(&cur->ctx, &next->ctx);
-        }
+        g_kernel.current_task = next;
+        task_set_state(next, RUNNING);
+        swapcontext(&cur->ctx, &next->ctx);
     }
     else
     {
@@ -72,7 +69,7 @@ void k_yield()
         else
         {
             g_kernel.current_task = next;
-            next->state = RUNNING;
+            task_set_state(next, RUNNING);
             setcontext(&next->ctx);
         }
     }
@@ -89,13 +86,14 @@ void k_run()
     if (g_kernel.head != NULL)
     {
         k_task_t *cur = scheduler_next();
-        cur->state = RUNNING;
+        task_set_state(cur, RUNNING);
         g_kernel.current_task = cur;
         swapcontext(&g_kernel.main_ctx, &cur->ctx);
         if (g_kernel.to_free != NULL)
         {
             free(g_kernel.to_free->stack);
             free(g_kernel.to_free);
+            g_kernel.to_free = NULL;
         }
     }
 

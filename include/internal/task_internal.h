@@ -4,14 +4,6 @@
 #include <ucontext.h>
 #include "kernel/task.h"
 
-typedef enum
-{
-    NEW,
-    READY,
-    RUNNING,
-    TERMINATED
-} task_state_t;
-
 typedef struct task
 {
     // Contexte de la tâche
@@ -29,5 +21,7 @@ typedef struct task
     // Pointeur vers la prochaine task dans la liste
     struct task *next;
 } k_task_t;
+
+void task_set_state(k_task_t *task, task_state_t new_state);
 
 #endif

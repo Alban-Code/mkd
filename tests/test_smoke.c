@@ -3,8 +3,6 @@
 
 #include "kernel/kernel.h"
 #include "kernel/task.h"
-#include "internal/kernel_internal.h"
-#include "internal/task_internal.h"
 
 typedef struct
 {
@@ -35,7 +33,6 @@ static void fn_task2(void *args)
 /* Test 1 : alternance correcte entre 2 tasks */
 static int test_alternance()
 {
-    // tableau pour enregistrer l'ordre d'exécution
     int order[4];
     int step = 0;
     k_init();
@@ -61,7 +58,7 @@ static int test_alternance()
 static void fn_task3(void *args)
 {
     task_state_t *observed = args;
-    *observed = g_kernel.current_task->state;
+    *observed = k_current_task_state();
 }
 
 /* Test 2 : transitions d'état */
@@ -70,10 +67,10 @@ static int test_etats()
     task_state_t observed;
     k_init();
     k_task_create(fn_task3, &observed);
-    assert(g_kernel.head->state == READY);
+    assert(k_task_count_in_state(READY) == 1);
     k_run();
     assert(observed == RUNNING);
-    assert(g_kernel.head == NULL);
+    assert(k_task_count_in_state(READY) == 0);
     k_shutdown();
 
     return 0;
@@ -86,31 +83,21 @@ static void fn_check_invariant(void *arg)
     (void)arg;
 
     // La task courante doit être RUNNING
-    if (g_kernel.current_task->state != RUNNING)
+    if (k_current_task_state() != RUNNING)
         invariant_violated = 1;
 
-    // Aucune task dans la queue ne doit être RUNNING
-    k_task_t *it = g_kernel.head;
-    while (it != NULL)
-    {
-        if (it->state == RUNNING)
-            invariant_violated = 1;
-        it = it->next;
-    }
+    // Une seule task RUNNING à la fois (aucune dans la queue)
+    if (k_task_count_in_state(RUNNING) != 1)
+        invariant_violated = 1;
 
     k_yield();
 
     // Même vérification après reprise
-    if (g_kernel.current_task->state != RUNNING)
+    if (k_current_task_state() != RUNNING)
         invariant_violated = 1;
 
-    it = g_kernel.head;
-    while (it != NULL)
-    {
-        if (it->state == RUNNING)
-            invariant_violated = 1;
-        it = it->next;
-    }
+    if (k_task_count_in_state(RUNNING) != 1)
+        invariant_violated = 1;
 }
 
 /* Test 3 : invariant une seule task RUNNING */
@@ -125,6 +112,60 @@ static int test_invariant_running()
     return invariant_violated ? -1 : 0;
 }
 
+static void fn_task4(void *args)
+{
+    test_ctx_t *ctx = args;
+    *ctx->step = *ctx->step + 1;
+    k_yield();
+    *ctx->step = *ctx->step + 1;
+    k_yield();
+    *ctx->step = *ctx->step + 1;
+}
+
+static int test_une_tache_yield_multiple()
+{
+    int order[4];
+    int step = 0;
+    k_init();
+
+    test_ctx_t ctx = {order, &step};
+
+    k_task_create(fn_task4, &ctx);
+    k_run();
+    k_shutdown();
+    if (step == 3)
+    {
+        return 0;
+    }
+    return -1;
+}
+static void fn_task5(void *args)
+{
+    (void)args;
+}
+
+static int test_toute_tache_finit()
+{
+
+    int order[4];
+    int step = 0;
+    k_init();
+
+    test_ctx_t ctx = {order, &step};
+
+    k_task_create(fn_task4, &ctx);
+    k_task_create(fn_task5, NULL);
+
+    k_run();
+    k_shutdown();
+
+    if (step == 3)
+    {
+        return 0;
+    }
+    return -1;
+}
+
 int main(void)
 {
     assert(k_init() == K_OK);
@@ -136,6 +177,7 @@ int main(void)
     assert(test_alternance() == 0);
     assert(test_etats() == 0);
     assert(test_invariant_running() == 0);
-
+    assert(test_une_tache_yield_multiple() == 0);
+    assert(test_toute_tache_finit() == 0);
     return 0;
 }
