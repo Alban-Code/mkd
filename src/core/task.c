@@ -140,3 +140,8 @@ task_state_t k_current_task_state(void)
 {
     return g_kernel.current_task->state;
 }
+
+k_task_t *get_current_task()
+{
+    return g_kernel.current_task;
+}

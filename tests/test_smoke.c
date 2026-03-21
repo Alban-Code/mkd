@@ -1,14 +1,24 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "kernel/kernel.h"
 #include "kernel/task.h"
+#include "internal/wait_queue.h"
 
 typedef struct
 {
     int *order;
     int *step;
 } test_ctx_t;
+
+typedef struct
+{
+    wait_queue_t *wq;
+    int *a_blocked;
+    int *b_did_wake;
+    int *a_resumed;
+} test_wq_ctx_t;
 
 static void fn_task1(void *args)
 {
@@ -166,6 +176,53 @@ static int test_toute_tache_finit()
     return -1;
 }
 
+static void fn_wq_A(void *args)
+{
+    test_wq_ctx_t *ctx = args;
+    k_task_t *me = get_current_task();
+    *ctx->a_blocked = 1;
+    wq_add(me, ctx->wq);
+    k_yield();
+    assert(*ctx->b_did_wake == 1);
+    *ctx->a_resumed = 1;
+}
+
+static void fn_wq_B(void *args)
+{
+    test_wq_ctx_t *ctx = args;
+    assert(*ctx->a_blocked == 1);
+    wq_wake_one(ctx->wq);
+    *ctx->b_did_wake = 1;
+}
+
+static int test_wq_1()
+{
+    int a_blocked = 0;
+    int a_resumed = 0;
+    int b_did_wake = 0;
+    wait_queue_t wq = {NULL, NULL};
+
+    test_wq_ctx_t ctx = {
+        &wq,
+        &a_blocked,
+        &b_did_wake,
+        &a_resumed};
+
+    k_init();
+
+    k_task_create(fn_wq_A, &ctx);
+    k_task_create(fn_wq_B, &ctx);
+
+    k_run();
+
+    k_shutdown();
+    assert(*ctx.a_blocked == 1);
+    assert(*ctx.a_resumed == 1);
+    assert(*ctx.b_did_wake == 1);
+
+    return 0;
+}
+
 int main(void)
 {
     assert(k_init() == K_OK);
@@ -179,5 +236,6 @@ int main(void)
     assert(test_invariant_running() == 0);
     assert(test_une_tache_yield_multiple() == 0);
     assert(test_toute_tache_finit() == 0);
+    assert(test_wq_1() == 0);
     return 0;
 }

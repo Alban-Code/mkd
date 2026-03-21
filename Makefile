@@ -5,8 +5,8 @@ CPPFLAGS = -Iinclude
 BIN = bin/mkd
 TEST_BIN = bin/test_smoke
 
-SRC = src/main.c src/core/kernel.c src/core/log.c src/core/scheduler.c src/core/task.c
-TEST_SRC = tests/test_smoke.c src/core/kernel.c src/core/log.c src/core/scheduler.c src/core/task.c
+SRC = src/main.c src/core/kernel.c src/core/log.c src/core/scheduler.c src/core/task.c src/sync/wait_queue.c
+TEST_SRC = tests/test_smoke.c src/core/kernel.c src/core/log.c src/core/scheduler.c src/core/task.c src/sync/wait_queue.c
 
 all: $(BIN)
 

@@ -20,8 +20,12 @@ typedef struct task
     int id;
     // Pointeur vers la prochaine task dans la liste
     struct task *next;
+    // Pointeur vers la prochaine task bloquée
+    struct task *wq_next;
 } k_task_t;
 
 void task_set_state(k_task_t *task, task_state_t new_state);
+
+k_task_t *get_current_task();
 
 #endif

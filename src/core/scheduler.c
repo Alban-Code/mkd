@@ -36,7 +36,7 @@ void k_yield()
     k_task_t *cur = g_kernel.current_task;
     k_task_t *next = scheduler_next();
 
-    if (cur->state != TERMINATED)
+    if (cur->state != TERMINATED && cur->state != BLOCKED)
     {
         if (next == NULL)
         {
@@ -61,7 +61,6 @@ void k_yield()
     }
     else
     {
-        g_kernel.to_free = cur;
         if (next == NULL)
         {
             setcontext(&g_kernel.main_ctx);
@@ -70,7 +69,15 @@ void k_yield()
         {
             g_kernel.current_task = next;
             task_set_state(next, RUNNING);
+        }
+        if (cur->state == TERMINATED)
+        {
+            g_kernel.to_free = cur;
             setcontext(&next->ctx);
+        }
+        else
+        {
+            swapcontext(&cur->ctx, &next->ctx);
         }
     }
 }
